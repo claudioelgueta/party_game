@@ -1,14 +1,12 @@
 // js/robarbase.js
-function bucleRobarBase() {
-    if (!juegoRoboActivo) return;
-}
-
-let canvasRobo, ctxRobo, juegoRoboActivo = false, animFrameRobo;
+let canvasRobo, ctxRobo;
+let juegoRoboActivo = false;
+let animFrameRobo;
 
 const VELOCIDAD_BASE = 3.3;
 const VELOCIDAD_CON_CARGA = 2.4;
 const TIEMPO_STUN_FRAMES = 90; // 1.5 segundos
-const TOTAL_BRAINROTS = 4;     // Ahora son 4 por base
+const TOTAL_BRAINROTS = 4;     // 4 por base
 
 let p1Robo = { x: 100, y: 225, r: 18, color: '#e74c3c', brainrot: null, score: 0, stun: 0, cooldown: 0 };
 let p2Robo = { x: 700, y: 225, r: 18, color: '#3498db', brainrot: null, score: 0, stun: 0, cooldown: 0 };
@@ -26,13 +24,19 @@ function iniciarMinijuegoRobarBase() {
     canvasRobo.height = 450;
     ctxRobo = canvasRobo.getContext('2d');
 
+    if (animFrameRobo) cancelAnimationFrame(animFrameRobo);
+
     p1Robo.score = 0;
     p2Robo.score = 0;
 
     inicializarBases();
     resetearPosicionesRobo();
-    juegoRoboActivo = true;
 
+    const modoControl = obtenerTipoControl();
+    document.getElementById('touchControls').style.display = (modoControl === 'mobile') ? 'flex' : 'none';
+    configurarBotonesTouchRobarBase();
+
+    juegoRoboActivo = true;
     bucleRobarBase();
 }
 
@@ -77,8 +81,8 @@ function bucleRobarBase() {
     if (p1Robo.cooldown > 0) p1Robo.cooldown--;
     if (p2Robo.cooldown > 0) p2Robo.cooldown--;
 
-    if (p1Robo.stun === 0) moverJugadorRobo(p1Robo, 'w', 's', 'a', 'd');
-    if (p2Robo.stun === 0) moverJugadorRobo(p2Robo, 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight');
+    if (p1Robo.stun === 0) moverJugadorRobo(p1Robo, ['w', 'W'], ['s', 'S'], ['a', 'A'], ['d', 'D']);
+    if (p2Robo.stun === 0) moverJugadorRobo(p2Robo, ['ArrowUp'], ['ArrowDown'], ['ArrowLeft'], ['ArrowRight']);
 
     // Ataque/Golpe si NO lleva objeto (P1: Espacio, P2: Enter)
     if (keys[' '] && !p1Robo.brainrot && p1Robo.stun === 0 && p1Robo.cooldown === 0) {
@@ -107,6 +111,7 @@ function bucleRobarBase() {
     // Condición de derrota: Pierde el jugador que se queda con 0 Brainrots en su base
     if (p1Robo.score >= TOTAL_BRAINROTS || p2Robo.score >= TOTAL_BRAINROTS) {
         juegoRoboActivo = false;
+        cancelAnimationFrame(animFrameRobo);
         let esGanadorP1 = p1Robo.score >= TOTAL_BRAINROTS;
         let texto = esGanadorP1 
             ? `¡Ganó ${jugadorActual.nombre}! Dejó a P2 sin Brainrots.` 
@@ -116,16 +121,16 @@ function bucleRobarBase() {
     }
 
     dibujarEscenaRobarBase();
-    animFrameRobo = requestAnimationFrame(bucleRobarBase);
+    if (juegoRoboActivo) animFrameGlobal = animFrameRobo = requestAnimationFrame(bucleRobarBase);
 }
 
-function moverJugadorRobo(p, up, down, left, right) {
+function moverJugadorRobo(p, upKeys, downKeys, leftKeys, rightKeys) {
     let speed = p.brainrot ? VELOCIDAD_CON_CARGA : VELOCIDAD_BASE;
 
-    if (keys[up]) p.y = Math.max(p.r, p.y - speed);
-    if (keys[down]) p.y = Math.min(canvasRobo.height - p.r, p.y + speed);
-    if (keys[left]) p.x = Math.max(p.r, p.x - speed);
-    if (keys[right]) p.x = Math.min(canvasRobo.width - p.r, p.x + speed);
+    if (upKeys.some(k => keys[k])) p.y = Math.max(p.r, p.y - speed);
+    if (downKeys.some(k => keys[k])) p.y = Math.min(canvasRobo.height - p.r, p.y + speed);
+    if (leftKeys.some(k => keys[k])) p.x = Math.max(p.r, p.x - speed);
+    if (rightKeys.some(k => keys[k])) p.x = Math.min(canvasRobo.width - p.r, p.x + speed);
 }
 
 function ejecutarGolpe(atacante, objetivo) {
@@ -261,4 +266,20 @@ function dibujarBrainrot(ctx, tipo, x, y) {
     }
 
     ctx.restore();
+}
+
+function configurarBotonesTouchRobarBase() {
+    const touchPanel = document.getElementById('touchControls');
+    touchPanel.innerHTML = `
+        <div style="display:flex; gap:10px; width:100%;">
+            <div style="flex:1; text-align:center;">
+                <p style="font-size:12px; margin-bottom:4px;">P1 (Rojo)</p>
+                <button class="touch-btn p1-btn" ontouchstart="keys[' ']=true" ontouchend="keys[' ']=false">🥊 GOLPEAR</button>
+            </div>
+            <div style="flex:1; text-align:center;">
+                <p style="font-size:12px; margin-bottom:4px;">P2 (Azul)</p>
+                <button class="touch-btn p2-btn" ontouchstart="keys['Enter']=true" ontouchend="keys['Enter']=false">🥊 GOLPEAR</button>
+            </div>
+        </div>
+    `;
 }

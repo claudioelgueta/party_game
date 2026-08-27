@@ -1,13 +1,10 @@
-function bucleGuerraPintura() {
-    if (!juegoPinturaActivo) return;
-    // ... resto del código
-}
+// js/guerrapintura.js
 let canvasPintura, ctxPintura, juegoPinturaActivo = false, animFramePintura;
 
 const FILAS_PINTURA = 10, COLS_PINTURA = 20;
 let tamCasilla = 40;
 let cuadrícula = []; // 0: vacia, 1: P1, 2: P2
-let tiempoPintura = 30; // 30 segundos
+let tiempoPintura = 30;
 let intervaloTiempoPintura;
 
 let p1Pintura = { x: 100, y: 100, r: 16, color: '#e74c3c', cdBomba: 0 };
@@ -28,6 +25,10 @@ function iniciarMinijuegoGuerraPintura() {
     p2Pintura.x = 700; p2Pintura.y = 300; p2Pintura.cdBomba = 0;
     tiempoPintura = 30;
 
+    // Configurar controles táctiles según el dispositivo
+    const modoControl = obtenerTipoControl();
+    document.getElementById('touchControls').style.display = (modoControl === 'mobile') ? 'flex' : 'none';
+
     clearInterval(intervaloTiempoPintura);
     intervaloTiempoPintura = setInterval(() => {
         if (!juegoPinturaActivo) return;
@@ -45,9 +46,9 @@ function bucleGuerraPintura() {
     if (p1Pintura.cdBomba > 0) p1Pintura.cdBomba--;
     if (p2Pintura.cdBomba > 0) p2Pintura.cdBomba--;
 
-    // Movimiento
-    moverJugadorPintura(p1Pintura, 'w', 's', 'a', 'd');
-    moverJugadorPintura(p2Pintura, 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight');
+    // Movimiento con soporte para mayúsculas
+    moverJugadorPintura(p1Pintura, ['w', 'W'], ['s', 'S'], ['a', 'A'], ['d', 'D']);
+    moverJugadorPintura(p2Pintura, ['ArrowUp'], ['ArrowDown'], ['ArrowLeft'], ['ArrowRight']);
 
     // Pintar casilla actual
     pintarCasillaBajoJugador(p1Pintura, 1);
@@ -67,12 +68,12 @@ function bucleGuerraPintura() {
     animFrameGlobal = animFramePintura = requestAnimationFrame(bucleGuerraPintura);
 }
 
-function moverJugadorPintura(p, up, down, left, right) {
+function moverJugadorPintura(p, upKeys, downKeys, leftKeys, rightKeys) {
     const spd = 4;
-    if (keys[up]) p.y = Math.max(p.r, p.y - spd);
-    if (keys[down]) p.y = Math.min(400 - p.r, p.y + spd);
-    if (keys[left]) p.x = Math.max(p.r, p.x - spd);
-    if (keys[right]) p.x = Math.min(canvasPintura.width - p.r, p.x + spd);
+    if (upKeys.some(k => keys[k])) p.y = Math.max(p.r, p.y - spd);
+    if (downKeys.some(k => keys[k])) p.y = Math.min(400 - p.r, p.y + spd);
+    if (leftKeys.some(k => keys[k])) p.x = Math.max(p.r, p.x - spd);
+    if (rightKeys.some(k => keys[k])) p.x = Math.min(canvasPintura.width - p.r, p.x + spd);
 }
 
 function pintarCasillaBajoJugador(p, jugadorID) {

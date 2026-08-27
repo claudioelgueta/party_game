@@ -1,126 +1,107 @@
-function buclePatata() {
-    if (!juegoPatataActivo) return;
-    // ... resto del código
-}
-let canvasPatata, ctxPatata, juegoPatataActivo = false, animFramePatata;
+// js/meteoros.js
+let canvasMet, ctxMet, juegoMetActivo = false, animFrameMet, meteoros = [];
 
-let tiempoBomba = 20;
-let intervaloPatata;
+let p1Met = { x: 250, y: 390, r: 16, hp: 3, color: '#e74c3c' };
+let p2Met = { x: 550, y: 390, r: 16, hp: 3, color: '#3498db' };
 
-let p1Patata = { x: 150, y: 225, r: 18, color: '#e74c3c', tieneBomba: false, cdDash: 0, dashTicks: 0 };
-let p2Patata = { x: 650, y: 225, r: 18, color: '#3498db', tieneBomba: false, cdDash: 0, dashTicks: 0 };
-
-function iniciarMinijuegoPatataCaliente() {
+function iniciarMinijuegoMeteoros() {
     document.getElementById('hubMinijuegos').style.display = 'none';
     document.getElementById('zonaJuego').style.display = 'block';
 
-    canvasPatata = document.getElementById('gameCanvas');
-    canvasPatata.height = 450;
-    ctxPatata = canvasPatata.getContext('2d');
+    canvasMet = document.getElementById('gameCanvas');
+    canvasMet.height = 450;
+    ctxMet = canvasMet.getContext('2d');
 
-    p1Patata.x = 150; p1Patata.y = 225; p1Patata.cdDash = 0; p1Patata.dashTicks = 0;
-    p2Patata.x = 650; p2Patata.y = 225; p2Patata.cdDash = 0; p2Patata.dashTicks = 0;
+    p1Met = { x: 250, y: 390, r: 16, hp: 3, color: '#e74c3c' };
+    p2Met = { x: 550, y: 390, r: 16, hp: 3, color: '#3498db' };
+    meteoros = [];
 
-    // Asignar bomba aleatoriamente
-    let p1Empieza = Math.random() < 0.5;
-    p1Patata.tieneBomba = p1Empieza;
-    p2Patata.tieneBomba = !p1Empieza;
+    // Ocultar o mostrar controles táctiles según el dispositivo
+    const modoControl = obtenerTipoControl();
+    document.getElementById('touchControls').style.display = (modoControl === 'mobile') ? 'flex' : 'none';
 
-    tiempoBomba = Math.floor(Math.random() * 10) + 15; // Entre 15 y 25 segundos
-
-    clearInterval(intervaloPatata);
-    intervaloPatata = setInterval(() => {
-        if (!juegoPatataActivo) return;
-        tiempoBomba--;
-        if (tiempoBomba <= 0) explotarPatata();
-    }, 1000);
-
-    juegoPatataActivo = true;
-    buclePatataCaliente();
+    juegoMetActivo = true;
+    bucleMeteoros();
 }
 
-function buclePatataCaliente() {
-    if (!juegoPatataActivo) return;
+function bucleMeteoros() {
+    if (!juegoMetActivo) return;
 
-    if (p1Patata.cdDash > 0) p1Patata.cdDash--;
-    if (p2Patata.cdDash > 0) p2Patata.cdDash--;
+    // Movimiento P1 (A/D) y P2 (Flechas Izquierda/Derecha)
+    if (keys['a'] || keys['A']) p1Met.x = Math.max(p1Met.r, p1Met.x - 5);
+    if (keys['d'] || keys['D']) p1Met.x = Math.min(canvasMet.width - p1Met.r, p1Met.x + 5);
 
-    // Activación de Dash
-    if (keys[' '] && p1Patata.cdDash === 0) { p1Patata.dashTicks = 12; p1Patata.cdDash = 120; }
-    if (keys['Enter'] && p2Patata.cdDash === 0) { p2Patata.dashTicks = 12; p2Patata.cdDash = 120; }
+    if (keys['ArrowLeft']) p2Met.x = Math.max(p2Met.r, p2Met.x - 5);
+    if (keys['ArrowRight']) p2Met.x = Math.min(canvasMet.width - p2Met.r, p2Met.x + 5);
 
-    moverJugadorPatata(p1Patata, 'w', 's', 'a', 'd');
-    moverJugadorPatata(p2Patata, 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight');
-
-    // Transferir Bomba al Hacer Contacto
-    let dist = Math.hypot(p1Patata.x - p2Patata.x, p1Patata.y - p2Patata.y);
-    if (dist < p1Patata.r + p2Patata.r + 5) {
-        if (p1Patata.tieneBomba) {
-            p1Patata.tieneBomba = false;
-            p2Patata.tieneBomba = true;
-        } else if (p2Patata.tieneBomba) {
-            p2Patata.tieneBomba = false;
-            p1Patata.tieneBomba = true;
-        }
+    // Generar Meteoros
+    if (Math.random() < 0.08) {
+        meteoros.push({ 
+            x: Math.random() * canvasMet.width, 
+            y: -20, 
+            r: 10 + Math.random() * 15, 
+            vy: 3 + Math.random() * 4 
+        });
     }
 
-    dibujarEscenaPatata();
-    animFrameGlobal = animFramePatata = requestAnimationFrame(buclePatataCaliente);
-}
+    // Actualizar y verificar colisiones
+    for (let i = meteoros.length - 1; i >= 0; i--) {
+        let m = meteoros[i];
+        m.y += m.vy;
 
-function moverJugadorPatata(p, up, down, left, right) {
-    let speed = 4;
-    if (p.dashTicks > 0) {
-        speed = 8.5; // Velocidad con Dash
-        p.dashTicks--;
+        // Colisión P1
+        if (Math.hypot(m.x - p1Met.x, m.y - p1Met.y) < m.r + p1Met.r) {
+            p1Met.hp--;
+            meteoros.splice(i, 1);
+            continue;
+        }
+        // Colisión P2
+        if (Math.hypot(m.x - p2Met.x, m.y - p2Met.y) < m.r + p2Met.r) {
+            p2Met.hp--;
+            meteoros.splice(i, 1);
+            continue;
+        }
+
+        // Eliminar si sale de pantalla
+        if (m.y > canvasMet.height + 20) meteoros.splice(i, 1);
     }
 
-    if (keys[up]) p.y = Math.max(p.r, p.y - speed);
-    if (keys[down]) p.y = Math.min(450 - p.r, p.y + speed);
-    if (keys[left]) p.x = Math.max(p.r, p.x - speed);
-    if (keys[right]) p.x = Math.min(canvasPatata.width - p.r, p.x + speed);
+    // Comprobar condición de derrota
+    if (p1Met.hp <= 0 || p2Met.hp <= 0) {
+        juegoMetActivo = false;
+        let esGanadorP1 = p1Met.hp > p2Met.hp;
+        let texto = esGanadorP1 ? `¡Ganó ${jugadorActual.nombre}!` : "¡Ganó Jugador 2!";
+        guardarResultadoServidor(esGanadorP1 ? 1 : 0, esGanadorP1 ? 100 : 20, texto);
+        return;
+    }
+
+    dibujarMeteoros();
+    animFrameGlobal = animFrameMet = requestAnimationFrame(bucleMeteoros);
 }
 
-function explotarPatata() {
-    juegoPatataActivo = false;
-    clearInterval(intervaloPatata);
+function dibujarMeteoros() {
+    ctxMet.fillStyle = '#0f172a';
+    ctxMet.fillRect(0, 0, canvasMet.width, canvasMet.height);
 
-    let esGanadorP1 = !p1Patata.tieneBomba; // Gana quien NO tiene la bomba
-    let texto = esGanadorP1 
-        ? `¡La bomba explotó! Ganó ${jugadorActual.nombre}.` 
-        : "¡La bomba explotó! Ganó Jugador 2.";
-
-    guardarResultadoServidor(esGanadorP1 ? 1 : 0, esGanadorP1 ? 150 : 30, texto);
-}
-
-function dibujarEscenaPatata() {
-    ctxPatata.clearRect(0, 0, canvasPatata.width, canvasPatata.height);
-
-    ctxPatata.fillStyle = '#0f172a';
-    ctxPatata.fillRect(0, 0, canvasPatata.width, canvasPatata.height);
-
-    // Jugadores
-    [p1Patata, p2Patata].forEach((p) => {
-        ctxPatata.fillStyle = p.color;
-        ctxPatata.beginPath(); ctxPatata.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctxPatata.fill();
-        ctxPatata.strokeStyle = '#ffffff'; ctxPatata.lineWidth = 2; ctxPatata.stroke();
-
-        // Dibujar la Bomba sobre el poseedor
-        if (p.tieneBomba) {
-            ctxPatata.fillStyle = '#ef4444';
-            ctxPatata.beginPath(); ctxPatata.arc(p.x, p.y - 28, 10, 0, Math.PI * 2); ctxPatata.fill();
-            ctxPatata.fillStyle = '#facc15';
-            ctxPatata.fillText('💣', p.x - 7, p.y - 24);
-        }
+    // Dibujar Jugadores
+    [p1Met, p2Met].forEach(p => {
+        ctxMet.fillStyle = p.color;
+        ctxMet.beginPath();
+        ctxMet.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctxMet.fill();
     });
 
-    // Marcador
-    ctxPatata.fillStyle = '#ffffff';
-    ctxPatata.font = 'bold 22px sans-serif';
-    ctxPatata.fillText(`💣 Explosión en: ${tiempoBomba}s`, 300, 40);
+    // Dibujar Meteoros
+    ctxMet.fillStyle = '#f97316';
+    meteoros.forEach(m => {
+        ctxMet.beginPath();
+        ctxMet.arc(m.x, m.y, m.r, 0, Math.PI * 2);
+        ctxMet.fill();
+    });
 
-    ctxPatata.font = '11px sans-serif';
-    ctxPatata.fillStyle = '#94a3b8';
-    ctxPatata.fillText('P1: WASD | Espacio = Dash', 20, 435);
-    ctxPatata.fillText('P2: Flechas | Enter = Dash', 600, 435);
+    // Dibujar HUD de Vidas
+    ctxMet.fillStyle = '#ffffff';
+    ctxMet.font = 'bold 18px sans-serif';
+    ctxMet.fillText(`P1 Vidas: ${'❤️'.repeat(Math.max(0, p1Met.hp))}`, 20, 35);
+    ctxMet.fillText(`P2 Vidas: ${'❤️'.repeat(Math.max(0, p2Met.hp))}`, canvasMet.width - 180, 35);
 }

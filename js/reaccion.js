@@ -1,14 +1,12 @@
-function bucleReaccion() {
-    if (!juegoReaccionActivo) return;
-    // ... resto del código
-}
-
+// js/reaccion.js
 let canvasReaccion, ctxReaccion;
 let estadoReaccion = 'ESPERANDO'; // 'PREPARADO', 'SENAL', 'ESPERA_PUNTO', 'FINAL'
 let timerEspera = null;
+let timerSiguienteRonda = null;
 let tiempoInicioSenal = 0;
 let puntosP1 = 0;
 let puntosP2 = 0;
+let juegoReaccionActivo = false;
 const PUNTOS_PARA_GANAR = 3;
 let mensajeEstado = "";
 
@@ -20,14 +18,19 @@ function iniciarMinijuegoReaccion() {
     canvasReaccion.height = 450;
     ctxReaccion = canvasReaccion.getContext('2d');
 
+    // Limpiar temporizadores anteriores si los hubiera
+    if (timerEspera) clearTimeout(timerEspera);
+    if (timerSiguienteRonda) clearTimeout(timerSiguienteRonda);
+
     puntosP1 = 0;
     puntosP2 = 0;
+    juegoReaccionActivo = true;
 
     const modoControl = obtenerTipoControl();
     document.getElementById('touchControls').style.display = (modoControl === 'mobile') ? 'flex' : 'none';
     configurarBotonesTouchReaccion();
 
-    // Eliminar listener anterior si existía y añadir el nuevo
+    // Reasignar listener de teclado asegurando no duplicarlo
     document.removeEventListener('keydown', manejarTeclaReaccion);
     document.addEventListener('keydown', manejarTeclaReaccion);
 
@@ -35,6 +38,8 @@ function iniciarMinijuegoReaccion() {
 }
 
 function iniciarNuevaRondaReaccion() {
+    if (!juegoReaccionActivo) return;
+
     if (puntosP1 >= PUNTOS_PARA_GANAR || puntosP2 >= PUNTOS_PARA_GANAR) {
         finalizarJuegoReaccion();
         return;
@@ -49,17 +54,19 @@ function iniciarNuevaRondaReaccion() {
     // Tiempo de espera aleatorio entre 2000ms y 5500ms
     let tiempoAleatorio = 2000 + Math.random() * 3500;
     timerEspera = setTimeout(() => {
+        if (!juegoReaccionActivo) return;
+        
         estadoReaccion = 'SENAL';
         tiempoInicioSenal = Date.now();
         mensajeEstado = "¡¡¡ Y A !!!";
-        dibujarEscenaReaccion('#2ecc71'); // Verde
+        dibujarEscenaReaccion('#2ecc71'); // Verde respuesta
     }, tiempoAleatorio);
 }
 
 function manejarTeclaReaccion(e) {
-    if (estadoReaccion === 'ESPERA_PUNTO' || estadoReaccion === 'FINAL') return;
+    if (!juegoReaccionActivo || estadoReaccion === 'ESPERA_PUNTO' || estadoReaccion === 'FINAL') return;
 
-    let key = e.key ? e.key.toLowerCase() : e;
+    let key = (typeof e === 'string') ? e.toLowerCase() : (e.key ? e.key.toLowerCase() : '');
     let esP1 = (key === ' ' || key === 'w' || key === 'spacebar');
     let esP2 = (key === 'enter' || key === 'arrowup');
 
@@ -67,7 +74,7 @@ function manejarTeclaReaccion(e) {
 
     if (estadoReaccion === 'PREPARADO') {
         // Falso comienzo
-        clearTimeout(timerEspera);
+        if (timerEspera) clearTimeout(timerEspera);
         estadoReaccion = 'ESPERA_PUNTO';
 
         if (esP1) {
@@ -78,7 +85,7 @@ function manejarTeclaReaccion(e) {
             mensajeEstado = "¡Falso comienzo de P2! Punto para P1";
         }
         dibujarEscenaReaccion('#e67e22'); // Naranja advertencia
-        setTimeout(iniciarNuevaRondaReaccion, 2200);
+        timerSiguienteRonda = setTimeout(iniciarNuevaRondaReaccion, 2200);
 
     } else if (estadoReaccion === 'SENAL') {
         // Reacción válida
@@ -93,7 +100,7 @@ function manejarTeclaReaccion(e) {
             mensajeEstado = `¡P2 fue más rápido! (${ms} ms)`;
         }
         dibujarEscenaReaccion('#3498db'); // Azul victoria
-        setTimeout(iniciarNuevaRondaReaccion, 2200);
+        timerSiguienteRonda = setTimeout(iniciarNuevaRondaReaccion, 2200);
     }
 }
 
@@ -114,20 +121,24 @@ function dibujarEscenaReaccion(colorFondo) {
     ctxReaccion.textAlign = 'center';
     ctxReaccion.font = 'bold 32px sans-serif';
     ctxReaccion.fillText(mensajeEstado, canvasReaccion.width / 2, canvasReaccion.height / 2);
-    ctxReaccion.textAlign = 'left';
+    ctxReaccion.textAlign = 'left'; // Restaurar alineación por defecto
 }
 
 function configurarBotonesTouchReaccion() {
     const touchPanel = document.getElementById('touchControls');
     touchPanel.innerHTML = `
         <div style="display:flex; gap:10px; width:100%;">
-            <button class="touch-btn p1-btn" style="flex:1; height:60px; font-size:18px;" onclick="manejarTeclaReaccion(' ')">🔴 P1 ¡AQUÍ!</button>
-            <button class="touch-btn p2-btn" style="flex:1; height:60px; font-size:18px;" onclick="manejarTeclaReaccion('enter')">🔵 P2 ¡AQUÍ!</button>
+            <button class="touch-btn p1-btn" style="flex:1; height:60px; font-size:18px;" ontouchstart="manejarTeclaReaccion(' ')">🔴 P1 ¡AQUÍ!</button>
+            <button class="touch-btn p2-btn" style="flex:1; height:60px; font-size:18px;" ontouchstart="manejarTeclaReaccion('enter')">🔵 P2 ¡AQUÍ!</button>
         </div>
     `;
 }
 
 function finalizarJuegoReaccion() {
+    juegoReaccionActivo = false;
+    if (timerEspera) clearTimeout(timerEspera);
+    if (timerSiguienteRonda) clearTimeout(timerSiguienteRonda);
+
     document.removeEventListener('keydown', manejarTeclaReaccion);
     estadoReaccion = 'FINAL';
 

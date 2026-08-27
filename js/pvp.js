@@ -1,8 +1,4 @@
-function buclePVP() {
-    if (!juegoPVPActivo) return;
-    // ... resto del código
-}
-
+// js/pvp.js
 let canvasPVP, ctxPVP;
 let juegoPVPActivo = false;
 let animFramePVP;
@@ -35,6 +31,9 @@ function iniciarMinijuegoPVP() {
     canvasPVP = document.getElementById('gameCanvas');
     canvasPVP.height = 450;
     ctxPVP = canvasPVP.getContext('2d');
+
+    // Limpiar temporizadores previo
+    clearInterval(timerSpawnArma);
 
     // Resetear jugadores
     resetPlayerPVP(player1, 80, 225, 1, 0);
@@ -80,7 +79,7 @@ function iniciarCuentaAtrasPVP() {
 
             // Iniciar spawn de armas cada 5 segundos
             timerSpawnArma = setInterval(spawnArmaAleatoria, 5000);
-            spawnArmaAleatoria(); // Spawn inicial
+            spawnArmaAleatoria();
 
             bucleJuegoPVP();
         }
@@ -110,13 +109,13 @@ function spawnArmaAleatoria() {
     armasEnMapa.push({ x: rx, y: ry, tipo: tipo, radius: 12 });
 }
 
-function actualizarMovimientoPVP(p, upKey, downKey, leftKey, rightKey, shootKey) {
+function actualizarMovimientoPVP(p, upKeys, downKeys, leftKeys, rightKeys, shootKey) {
     let moveX = 0, moveY = 0;
 
-    if (keys[upKey]) moveY -= 1;
-    if (keys[downKey]) moveY += 1;
-    if (keys[leftKey]) moveX -= 1;
-    if (keys[rightKey]) moveX += 1;
+    if (upKeys.some(k => keys[k])) moveY -= 1;
+    if (downKeys.some(k => keys[k])) moveY += 1;
+    if (leftKeys.some(k => keys[k])) moveX -= 1;
+    if (rightKeys.some(k => keys[k])) moveX += 1;
 
     // Normalizar dirección
     if (moveX !== 0 || moveY !== 0) {
@@ -127,7 +126,7 @@ function actualizarMovimientoPVP(p, upKey, downKey, leftKey, rightKey, shootKey)
         let nX = p.x + p.dirX * p.speed;
         let nY = p.y + p.dirY * p.speed;
 
-        // Limites Canvas
+        // Limites Canvas y colisiones
         if (nX > p.radius && nX < canvasPVP.width - p.radius && !colisionObstaculo(nX, p.y, p.radius)) {
             p.x = nX;
         }
@@ -137,13 +136,14 @@ function actualizarMovimientoPVP(p, upKey, downKey, leftKey, rightKey, shootKey)
     }
 
     // Recoger Armas
-    armasEnMapa.forEach((armaBox, index) => {
+    for (let i = armasEnMapa.length - 1; i >= 0; i--) {
+        let armaBox = armasEnMapa[i];
         if (Math.hypot(p.x - armaBox.x, p.y - armaBox.y) < p.radius + armaBox.radius) {
             p.arma = armaBox.tipo;
             p.municion = armaBox.tipo.municion;
-            armasEnMapa.splice(index, 1);
+            armasEnMapa.splice(i, 1);
         }
-    });
+    }
 
     // Cooldown de disparo
     if (p.cooldown > 0) p.cooldown--;
@@ -156,7 +156,7 @@ function actualizarMovimientoPVP(p, upKey, downKey, leftKey, rightKey, shootKey)
 
 function dispararArma(p) {
     if (!p.arma) {
-        // Disparo básico de puño/pistola débil si no tiene arma
+        // Disparo básico sin arma
         proyectiles.push({ x: p.x + p.dirX * 20, y: p.y + p.dirY * 20, vx: p.dirX * 7, vy: p.dirY * 7, damage: 6, radius: 4, owner: p, color: '#ffffff' });
         p.cooldown = 20;
         return;
@@ -179,7 +179,7 @@ function dispararArma(p) {
     p.municion--;
     p.cooldown = p.arma.cooldown;
 
-    if (p.municion <= 0) p.arma = null; // Se agota el arma
+    if (p.municion <= 0) p.arma = null;
 }
 
 function colisionObstaculo(x, y, r) {
@@ -195,39 +195,40 @@ function bucleJuegoPVP() {
     if (!juegoPVPActivo) return;
 
     // Actualizar P1 (WASD + Espacio)
-    actualizarMovimientoPVP(player1, 'w', 's', 'a', 'd', ' ');
-    actualizarMovimientoPVP(player1, 'W', 'S', 'A', 'D', ' ');
+    actualizarMovimientoPVP(player1, ['w', 'W'], ['s', 'S'], ['a', 'A'], ['d', 'D'], ' ');
 
     // Actualizar P2 (Flechas + Enter)
-    actualizarMovimientoPVP(player2, 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter');
+    actualizarMovimientoPVP(player2, ['ArrowUp'], ['ArrowDown'], ['ArrowLeft'], ['ArrowRight'], 'Enter');
 
-    // Actualizar Proyectiles
-    proyectiles.forEach((proj, index) => {
+    // Actualizar Proyectiles (recorrido inverso para evitar saltos al eliminar)
+    for (let i = proyectiles.length - 1; i >= 0; i--) {
+        let proj = proyectiles[i];
         proj.x += proj.vx;
         proj.y += proj.vy;
 
         // Fuera de limites o colisión muro
         if (proj.x < 0 || proj.x > canvasPVP.width || proj.y < 0 || proj.y > canvasPVP.height || colisionObstaculo(proj.x, proj.y, proj.radius)) {
-            proyectiles.splice(index, 1);
-            return;
+            proyectiles.splice(i, 1);
+            continue;
         }
 
         // Colisión con jugadores
         let objetivo = (proj.owner === player1) ? player2 : player1;
         if (Math.hypot(proj.x - objetivo.x, proj.y - objetivo.y) < proj.radius + objetivo.radius) {
             objetivo.hp -= proj.damage;
-            proyectiles.splice(index, 1);
+            proyectiles.splice(i, 1);
 
             if (objetivo.hp <= 0) {
                 objetivo.hp = 0;
                 juegoPVPActivo = false;
                 verificarGanadorPVP();
+                return;
             }
         }
-    });
+    }
 
     dibujarEscenaPVP();
-    if (juegoPVPActivo) animFramePVP = requestAnimationFrame(bucleJuegoPVP);
+    if (juegoPVPActivo) animFrameGlobal = animFramePVP = requestAnimationFrame(bucleJuegoPVP);
 }
 
 function dibujarEscenaPVP() {
@@ -302,7 +303,7 @@ function dibujarHUD(p, x, y, label) {
 
     // Barra Vida
     ctxPVP.fillStyle = '#2ecc71';
-    ctxPVP.fillRect(x, y + 8, (p.hp / 100) * 220, 16);
+    ctxPVP.fillRect(x, y + 8, Math.max(0, (p.hp / 100)) * 220, 16);
 }
 
 function configurarBotonesTouchPVP() {

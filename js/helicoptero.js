@@ -1,8 +1,4 @@
-function bucleHeli() {
-    if (!juegoHeliActivo) return;
-    // ... resto del código
-}
-
+// js/helicoptero.js
 let canvasHeli, ctxHeli;
 let juegoHeliActivo = false;
 let animFrameHeli;
@@ -62,11 +58,12 @@ function iniciarCuentaAtrasHeli() {
     }, 800);
 }
 
-function actualizarHelicoptero(h, upKey1, upKey2) {
+function actualizarHelicoptero(h, teclasProporcionadas) {
     if (!h.vivo) return;
 
-    // Elevar si presiona tecla, caer si no
-    if (keys[upKey1] || keys[upKey2]) {
+    // Elevar si presiona alguna de las teclas asignadas
+    let presionado = teclasProporcionadas.some(k => keys[k]);
+    if (presionado) {
         h.vy += IMPULSO;
     }
     h.vy += GRAVEDAD;
@@ -102,9 +99,9 @@ function generarObstaculosHeli() {
 function bucleJuegoHeli() {
     if (!juegoHeliActivo) return;
 
-    // P1: Espacio o W | P2: Enter o Flecha Arriba
-    actualizarHelicoptero(heli1, ' ', 'w');
-    actualizarHelicoptero(heli2, 'Enter', 'ArrowUp');
+    // P1: Espacio o W/w | P2: Enter o Flecha Arriba
+    actualizarHelicoptero(heli1, [' ', 'w', 'W']);
+    actualizarHelicoptero(heli2, ['Enter', 'ArrowUp']);
 
     generarObstaculosHeli();
 
@@ -135,7 +132,7 @@ function bucleJuegoHeli() {
     }
 
     dibujarEscenaHeli();
-    if (juegoHeliActivo) animFrameHeli = requestAnimationFrame(bucleJuegoHeli);
+    if (juegoHeliActivo) animFrameGlobal = animFrameHeli = requestAnimationFrame(bucleJuegoHeli);
 }
 
 function dibujarEscenaHeli() {

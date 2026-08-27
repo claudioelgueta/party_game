@@ -1,8 +1,4 @@
-function bucleFutbol() {
-    if (!juegoFutbolActivo) return;
-    // ... resto del código
-}
-
+// js/futbol.js
 let canvasFutbol, ctxFutbol;
 let juegoFutbolActivo = false;
 let animFrameFutbol;
@@ -62,7 +58,7 @@ function iniciarCuentaAtrasFutbol() {
             clearInterval(timer);
             overlay.style.display = 'none';
             juegoFutbolActivo = true;
-            bucleJuegoFutbol();
+            bucleFutbol();
         }
     }, 800);
 }
@@ -155,12 +151,12 @@ function verificarGolOVictoria(mensaje) {
             overlay.style.display = 'none';
             resetearPosicionesFutbol();
             juegoFutbolActivo = true;
-            bucleJuegoFutbol();
+            bucleFutbol();
         }, 1800);
     }
 }
 
-function bucleJuegoFutbol() {
+function bucleFutbol() {
     if (!juegoFutbolActivo) return;
 
     moverJugadorFutbol(player1Futbol, 'w', 'W', 's', 'S', 'a', 'A', 'd', 'D');
@@ -169,7 +165,9 @@ function bucleJuegoFutbol() {
     actualizarFisicasBalon();
     dibujarEscenaFutbol();
 
-    if (juegoFutbolActivo) animFrameFutbol = requestAnimationFrame(bucleJuegoFutbol);
+    if (juegoFutbolActivo) {
+        animFrameGlobal = animFrameFutbol = requestAnimationFrame(bucleFutbol);
+    }
 }
 
 function dibujarEscenaFutbol() {

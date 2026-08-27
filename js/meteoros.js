@@ -1,8 +1,4 @@
-function bucleMeteoros() {
-    if (!juegoMetActivo) return;
-    // ... resto del código
-}
-
+// js/meteoros.js
 let canvasMet, ctxMet, juegoMetActivo = false, animFrameMet, meteoros = [];
 
 let p1Met = { x: 250, y: 390, r: 16, hp: 3, color: '#e74c3c' };
@@ -19,27 +15,36 @@ function iniciarMinijuegoMeteoros() {
     p1Met = { x: 250, y: 390, r: 16, hp: 3, color: '#e74c3c' };
     p2Met = { x: 550, y: 390, r: 16, hp: 3, color: '#3498db' };
     meteoros = [];
-    juegoMetActivo = true;
 
+    // Ocultar o mostrar controles táctiles según el dispositivo
+    const modoControl = obtenerTipoControl();
+    document.getElementById('touchControls').style.display = (modoControl === 'mobile') ? 'flex' : 'none';
+
+    juegoMetActivo = true;
     bucleMeteoros();
 }
 
 function bucleMeteoros() {
     if (!juegoMetActivo) return;
 
-    // Movimiento P1 (A/D) y P2 (Izq/Der)
+    // Movimiento P1 (A/D) y P2 (Flechas Izquierda/Derecha)
     if (keys['a'] || keys['A']) p1Met.x = Math.max(p1Met.r, p1Met.x - 5);
     if (keys['d'] || keys['D']) p1Met.x = Math.min(canvasMet.width - p1Met.r, p1Met.x + 5);
 
     if (keys['ArrowLeft']) p2Met.x = Math.max(p2Met.r, p2Met.x - 5);
     if (keys['ArrowRight']) p2Met.x = Math.min(canvasMet.width - p2Met.r, p2Met.x + 5);
 
-    // Spawn Meteoros
+    // Generar Meteoros
     if (Math.random() < 0.08) {
-        meteoros.push({ x: Math.random() * canvasMet.width, y: -20, r: 10 + Math.random() * 15, vy: 3 + Math.random() * 4 });
+        meteoros.push({ 
+            x: Math.random() * canvasMet.width, 
+            y: -20, 
+            r: 10 + Math.random() * 15, 
+            vy: 3 + Math.random() * 4 
+        });
     }
 
-    // Actualizar Meteoros
+    // Actualizar y verificar colisiones
     for (let i = meteoros.length - 1; i >= 0; i--) {
         let m = meteoros[i];
         m.y += m.vy;
@@ -57,9 +62,11 @@ function bucleMeteoros() {
             continue;
         }
 
+        // Eliminar si sale de pantalla
         if (m.y > canvasMet.height + 20) meteoros.splice(i, 1);
     }
 
+    // Comprobar condición de derrota
     if (p1Met.hp <= 0 || p2Met.hp <= 0) {
         juegoMetActivo = false;
         let esGanadorP1 = p1Met.hp > p2Met.hp;
@@ -69,14 +76,14 @@ function bucleMeteoros() {
     }
 
     dibujarMeteoros();
-    animFrameMet = requestAnimationFrame(bucleMeteoros);
+    animFrameGlobal = animFrameMet = requestAnimationFrame(bucleMeteoros);
 }
 
 function dibujarMeteoros() {
     ctxMet.fillStyle = '#0f172a';
     ctxMet.fillRect(0, 0, canvasMet.width, canvasMet.height);
 
-    // Dibuja Jugadores
+    // Dibujar Jugadores
     [p1Met, p2Met].forEach(p => {
         ctxMet.fillStyle = p.color;
         ctxMet.beginPath();
@@ -84,7 +91,7 @@ function dibujarMeteoros() {
         ctxMet.fill();
     });
 
-    // Meteoros
+    // Dibujar Meteoros
     ctxMet.fillStyle = '#f97316';
     meteoros.forEach(m => {
         ctxMet.beginPath();
@@ -92,7 +99,7 @@ function dibujarMeteoros() {
         ctxMet.fill();
     });
 
-    // HUD
+    // Dibujar HUD de Vidas
     ctxMet.fillStyle = '#ffffff';
     ctxMet.font = 'bold 18px sans-serif';
     ctxMet.fillText(`P1 Vidas: ${'❤️'.repeat(Math.max(0, p1Met.hp))}`, 20, 35);

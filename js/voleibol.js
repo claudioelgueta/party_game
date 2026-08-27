@@ -12,7 +12,9 @@ const PUNTOS_GANAR_VOLEY = 3;
 
 let p1Voley = { x: 180, y: 380, r: 20, color: '#e74c3c', vx: 0, vy: 0, enSuelo: true, score: 0 };
 let p2Voley = { x: 620, y: 380, r: 20, color: '#3498db', vx: 0, vy: 0, enSuelo: true, score: 0 };
-let balonVoley = { x: 400, y: 110, r: 14, vx: 0, vy: 0, enEspera: true };
+
+// Pelota en posición inicial más baja (y = 210) para ser alcanzable con el salto
+let balonVoley = { x: 400, y: 210, r: 14, vx: 0, vy: 0, enEspera: true };
 
 const RED_VOLEY = { x: 395, width: 10, top: 230, bottom: 450 };
 
@@ -27,6 +29,14 @@ function iniciarMinijuegoVoleibol() {
     p1Voley.score = 0;
     p2Voley.score = 0;
 
+    // Configurar controles touch para móviles
+    const modoControl = obtenerTipoControl ? obtenerTipoControl() : 'desktop';
+    const touchControls = document.getElementById('touchControls');
+    if (touchControls) {
+        touchControls.style.display = (modoControl === 'mobile') ? 'flex' : 'none';
+        configurarBotonesTouchVoley();
+    }
+
     resetearPuntoVoley();
     juegoVoleyActivo = true;
 
@@ -37,9 +47,9 @@ function resetearPuntoVoley() {
     p1Voley.x = 180; p1Voley.y = 380; p1Voley.vy = 0; p1Voley.enSuelo = true;
     p2Voley.x = 620; p2Voley.y = 380; p2Voley.vy = 0; p2Voley.enSuelo = true;
 
-    // Balón suspendido en el centro arriba hasta el primer golpe
+    // Balón suspendido sobre la red a una altura alcanzable con un salto
     balonVoley.x = 400;
-    balonVoley.y = 110;
+    balonVoley.y = 210;
     balonVoley.vx = 0;
     balonVoley.vy = 0;
     balonVoley.enEspera = true;
@@ -48,8 +58,8 @@ function resetearPuntoVoley() {
 function bucleVoleibol() {
     if (!juegoVoleyActivo) return;
 
-    actualizarJugadorVoley(p1Voley, 'w', 'a', 'd', 20, 375);
-    actualizarJugadorVoley(p2Voley, 'ArrowUp', 'ArrowLeft', 'ArrowRight', 425, 780);
+    actualizarJugadorVoley(p1Voley, ['w', 'W'], ['a', 'A'], ['d', 'D'], 20, 375);
+    actualizarJugadorVoley(p2Voley, ['ArrowUp'], ['ArrowLeft'], ['ArrowRight'], 425, 780);
 
     // Movimiento del Balón (solo si ya no está en espera)
     if (!balonVoley.enEspera) {
@@ -76,19 +86,20 @@ function bucleVoleibol() {
         }
     }
 
-    // Colisión Balón con Jugadores (inicia el juego al golpear)
+    // Colisión Balón con Jugadores
     [
-        { p: p1Voley, remateKey: ' ' },
-        { p: p2Voley, remateKey: 'Enter' }
+        { p: p1Voley, remateKeys: [' '] },
+        { p: p2Voley, remateKeys: ['Enter'] }
     ].forEach(item => {
         let jug = item.p;
         let dist = Math.hypot(balonVoley.x - jug.x, balonVoley.y - jug.y);
         if (dist < balonVoley.r + jug.r) {
             if (balonVoley.enEspera) {
-                balonVoley.enEspera = false; // El primer golpe activa la física
+                balonVoley.enEspera = false;
             }
             let angle = Math.atan2(balonVoley.y - jug.y, balonVoley.x - jug.x);
-            let fuerza = keys[item.remateKey] ? 9.5 : 6;
+            let esRemate = item.remateKeys.some(k => keys[k]);
+            let fuerza = esRemate ? 9.5 : 6.5;
             balonVoley.vx = Math.cos(angle) * fuerza;
             balonVoley.vy = Math.sin(angle) * fuerza;
         }
@@ -104,9 +115,11 @@ function bucleVoleibol() {
         resetearPuntoVoley();
     }
 
-    // Victoria tras 3 Rondas
+    // Victoria tras ganar los puntos definidos
     if (p1Voley.score >= PUNTOS_GANAR_VOLEY || p2Voley.score >= PUNTOS_GANAR_VOLEY) {
         juegoVoleyActivo = false;
+        if (animFrameVoley) cancelAnimationFrame(animFrameVoley);
+
         let esGanadorP1 = p1Voley.score >= PUNTOS_GANAR_VOLEY;
         let texto = esGanadorP1 ? `¡Ganó ${jugadorActual.nombre} (3 Rondas)!` : "¡Ganó Jugador 2 (3 Rondas)!";
         guardarResultadoServidor(esGanadorP1 ? 1 : 0, esGanadorP1 ? 150 : 30, texto);
@@ -114,14 +127,14 @@ function bucleVoleibol() {
     }
 
     dibujarEscenaVoleibol();
-    animFrameVoley = requestAnimationFrame(bucleVoleibol);
+    if (juegoVoleyActivo) animFrameGlobal = animFrameVoley = requestAnimationFrame(bucleVoleibol);
 }
 
-function actualizarJugadorVoley(p, jumpKey, leftKey, rightKey, minX, maxX) {
-    if (keys[leftKey]) p.x = Math.max(minX, p.x - 4.5);
-    if (keys[rightKey]) p.x = Math.min(maxX, p.x + 4.5);
+function actualizarJugadorVoley(p, jumpKeys, leftKeys, rightKeys, minX, maxX) {
+    if (leftKeys.some(k => keys[k])) p.x = Math.max(minX, p.x - 4.5);
+    if (rightKeys.some(k => keys[k])) p.x = Math.min(maxX, p.x + 4.5);
 
-    if (keys[jumpKey] && p.enSuelo) {
+    if (jumpKeys.some(k => keys[k]) && p.enSuelo) {
         p.vy = SALTO_VOLEY;
         p.enSuelo = false;
     }
@@ -142,36 +155,69 @@ function dibujarEscenaVoleibol() {
     ctxVoley.fillStyle = '#0f172a';
     ctxVoley.fillRect(0, 0, canvasVoley.width, canvasVoley.height);
 
+    // Suelo
     ctxVoley.fillStyle = '#f59e0b';
     ctxVoley.fillRect(0, 400, canvasVoley.width, 50);
 
+    // Red
     ctxVoley.fillStyle = '#ffffff';
     ctxVoley.fillRect(RED_VOLEY.x, RED_VOLEY.top, RED_VOLEY.width, RED_VOLEY.bottom - RED_VOLEY.top);
 
     // Jugadores
     [p1Voley, p2Voley].forEach(p => {
         ctxVoley.fillStyle = p.color;
-        ctxVoley.beginPath(); ctxVoley.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctxVoley.fill();
-        ctxVoley.strokeStyle = '#ffffff'; ctxVoley.lineWidth = 2; ctxVoley.stroke();
+        ctxVoley.beginPath(); 
+        ctxVoley.arc(p.x, p.y, p.r, 0, Math.PI * 2); 
+        ctxVoley.fill();
+        ctxVoxelStroke(ctxVoley, p.x, p.y, p.r);
     });
 
     // Balón
     ctxVoley.fillStyle = '#facc15';
-    ctxVoley.beginPath(); ctxVoley.arc(balonVoley.x, balonVoley.y, balonVoley.r, 0, Math.PI * 2); ctxVoley.fill();
-    ctxVoley.strokeStyle = '#0284c7'; ctxVoley.lineWidth = 2; ctxVoley.stroke();
+    ctxVoley.beginPath(); 
+    ctxVoley.arc(balonVoley.x, balonVoley.y, balonVoley.r, 0, Math.PI * 2); 
+    ctxVoley.fill();
+    ctxVoley.strokeStyle = '#0284c7'; 
+    ctxVoley.lineWidth = 2; 
+    ctxVoley.stroke();
 
-    // Cartel indicativo de saque
+    // Mensaje inicial
     if (balonVoley.enEspera) {
         ctxVoley.fillStyle = '#facc15';
         ctxVoley.font = 'bold 15px sans-serif';
         ctxVoley.textAlign = 'center';
-        ctxVoley.fillText('¡GOLPEA EL BALÓN PARA INICIAR LA RONDA!', 400, 70);
+        ctxVoley.fillText('¡SALTA Y GOLPEA EL BALÓN PARA SAQUER!', 400, 140);
         ctxVoley.textAlign = 'left';
     }
 
     // Marcador
     ctxVoley.fillStyle = '#ffffff';
     ctxVoley.font = 'bold 20px sans-serif';
-    ctxVoley.fillText(`P1: ${p1Voley.score}/3`, 50, 40);
-    ctxVoley.fillText(`P2: ${p2Voley.score}/3`, 680, 40);
+    ctxVoley.fillText(`P1: ${p1Voley.score}/${PUNTOS_GANAR_VOLEY}`, 50, 40);
+    ctxVoley.fillText(`P2: ${p2Voley.score}/${PUNTOS_GANAR_VOLEY}`, canvasVoley.width - 120, 40);
+}
+
+function ctxVoxelStroke(ctx, x, y, r) {
+    ctx.strokeStyle = '#ffffff'; 
+    ctx.lineWidth = 2; 
+    ctx.stroke();
+}
+
+function configurarBotonesTouchVoley() {
+    const touchPanel = document.getElementById('touchControls');
+    if (!touchPanel) return;
+    touchPanel.innerHTML = `
+        <div style="display:flex; gap:10px; width:100%;">
+            <div style="flex:1; text-align:center;">
+                <p style="font-size:12px; margin-bottom:4px;">P1 (Rojo)</p>
+                <button class="touch-btn" ontouchstart="keys['w']=true" ontouchend="keys['w']=false">🦘 SALTO</button>
+                <button class="touch-btn" ontouchstart="keys[' ']=true" ontouchend="keys[' ']=false">💥 REMATE</button>
+            </div>
+            <div style="flex:1; text-align:center;">
+                <p style="font-size:12px; margin-bottom:4px;">P2 (Azul)</p>
+                <button class="touch-btn" ontouchstart="keys['ArrowUp']=true" ontouchend="keys['ArrowUp']=false">🦘 SALTO</button>
+                <button class="touch-btn" ontouchstart="keys['Enter']=true" ontouchend="keys['Enter']=false">💥 REMATE</button>
+            </div>
+        </div>
+    `;
 }
