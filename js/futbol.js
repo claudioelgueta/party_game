@@ -41,26 +41,10 @@ function resetearPosicionesFutbol() {
 }
 
 function iniciarCuentaAtrasFutbol() {
-    let cuenta = 3;
-    const overlay = document.getElementById('mensajeJuego');
-    overlay.style.display = 'flex';
-
-    dibujarEscenaFutbol();
-
-    const timer = setInterval(() => {
-        if (cuenta > 0) {
-            overlay.innerText = cuenta;
-            cuenta--;
-        } else if (cuenta === 0) {
-            overlay.innerText = "¡A ANOTAR!";
-            cuenta--;
-        } else {
-            clearInterval(timer);
-            overlay.style.display = 'none';
-            juegoFutbolActivo = true;
-            bucleFutbol();
-        }
-    }, 800);
+    iniciarCuentaAtras(canvasFutbol, () => {
+        juegoFutbolActivo = true;
+        bucleFutbol();
+    });
 }
 
 function moverJugadorFutbol(p, upKey1, upKey2, downKey1, downKey2, leftKey1, leftKey2, rightKey1, rightKey2) {

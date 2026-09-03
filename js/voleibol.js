@@ -38,9 +38,10 @@ function iniciarMinijuegoVoleibol() {
     }
 
     resetearPuntoVoley();
-    juegoVoleyActivo = true;
-
-    bucleVoleibol();
+    iniciarCuentaAtras(canvasVoley, () => {
+        juegoVoleyActivo = true;
+        bucleVoleibol();
+    });
 }
 
 function resetearPuntoVoley() {
@@ -122,7 +123,7 @@ function bucleVoleibol() {
 
         let esGanadorP1 = p1Voley.score >= PUNTOS_GANAR_VOLEY;
         let texto = esGanadorP1 ? `¡Ganó ${jugadorActual.nombre} (3 Rondas)!` : "¡Ganó Jugador 2 (3 Rondas)!";
-        guardarResultadoServidor(esGanadorP1 ? 1 : 0, esGanadorP1 ? 150 : 30, texto);
+        guardarResultadoServidor(esGanadorP1 ? 1 : 0, esGanadorP1 ? 150 : 30, texto, esGanadorP1 ? 'P1' : 'P2');
         return;
     }
 

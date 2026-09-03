@@ -24,9 +24,10 @@ function iniciarMinijuegoBasquetbol() {
     p2Basket.score = 0;
 
     resetearPosicionesBasket();
-    juegoBasketActivo = true;
-
-    bucleBasquetbol();
+    iniciarCuentaAtras(canvasBasket, () => {
+        juegoBasketActivo = true;
+        bucleBasquetbol();
+    });
 }
 
 function resetearPosicionesBasket() {

@@ -59,31 +59,12 @@ function resetPlayerPVP(p, x, y, dx, dy) {
 }
 
 function iniciarCuentaAtrasPVP() {
-    let cuenta = 3;
-    const overlay = document.getElementById('mensajeJuego');
-    overlay.style.display = 'flex';
-
-    dibujarEscenaPVP();
-
-    const timer = setInterval(() => {
-        if (cuenta > 0) {
-            overlay.innerText = cuenta;
-            cuenta--;
-        } else if (cuenta === 0) {
-            overlay.innerText = "¡A PELEAR!";
-            cuenta--;
-        } else {
-            clearInterval(timer);
-            overlay.style.display = 'none';
-            juegoPVPActivo = true;
-
-            // Iniciar spawn de armas cada 5 segundos
-            timerSpawnArma = setInterval(spawnArmaAleatoria, 5000);
-            spawnArmaAleatoria();
-
-            bucleJuegoPVP();
-        }
-    }, 800);
+    iniciarCuentaAtras(canvasPVP, () => {
+        juegoPVPActivo = true;
+        timerSpawnArma = setInterval(spawnArmaAleatoria, 5000);
+        spawnArmaAleatoria();
+        bucleJuegoPVP();
+    });
 }
 
 function spawnArmaAleatoria() {

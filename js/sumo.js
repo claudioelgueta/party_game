@@ -30,8 +30,10 @@ function iniciarMinijuegoSumo() {
     document.getElementById('touchControls').style.display = (modoControl === 'mobile') ? 'flex' : 'none';
     configurarBotonesTouchSumo();
 
-    juegoSumoActivo = true;
-    bucleSumo();
+    iniciarCuentaAtras(canvasSumo, () => {
+        juegoSumoActivo = true;
+        bucleSumo();
+    });
 }
 
 function bucleSumo() {
@@ -78,7 +80,7 @@ function bucleSumo() {
             ? `¡Ganó ${jugadorActual.nombre} (P1)! Sacó a P2 del Dohyo.` 
             : "¡Ganó Jugador 2! Sacó a P1 del Dohyo.";
         
-        guardarResultadoServidor(esGanadorP1 ? 1 : 0, esGanadorP1 ? 120 : 30, texto);
+        guardarResultadoServidor(esGanadorP1 ? 1 : 0, esGanadorP1 ? 120 : 30, texto, esGanadorP1 ? 'P1' : 'P2');
         return;
     }
 

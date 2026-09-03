@@ -1,197 +1,250 @@
-let jugadorActual = null;
-let vistaEstadisticas = 'simple';
+// ==========================================
+// MAIN.JS - MOTOR GLOBAL Y GESTIÓN DE HUB
+// ==========================================
 
-document.addEventListener('DOMContentLoaded', () => {
-    const sesionGuardada = localStorage.getItem('nombreJugador');
-    if (sesionGuardada) {
-        document.getElementById('nombreJugador').value = sesionGuardada;
-        iniciarSesion();
-    }
-});
+// Manejo global de entradas de teclado
+let keys = {};
 
-function iniciarSesion() {
-    const nombreInput = document.getElementById('nombreJugador').value.trim();
-    if (!nombreInput) {
-        alert("Ingresa un nombre por favor");
-        return;
-    }
+window.addEventListener('keydown', (e) => { keys[e.key] = true; });
+window.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
-    const formData = new FormData();
-    formData.append('nombre', nombreInput);
+// ESTADO GLOBAL ÚNICO
+let juegoActivo = null;      // Nombre del minijuego activo (ej: 'sumo', 'voley') o null
+let animFrameGlobal = null;  // Identificador único para requestAnimationFrame
+let timerContador = null;    // Identificador único para setInterval (conteo 3, 2, 1)
+let timerPantallaFinal = null;
+let pantallaFinalActiva = false;
+let rachasVictoria = { P1: 0, P2: 0 };
+const intervalosActivos = new Set();
+const temporizadoresActivos = new Set();
+const framesActivos = new Set();
 
-    fetch('api/stats.php?action=login', {
-        method: 'POST',
-        body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === 'success') {
-            jugadorActual = data.jugador;
-            localStorage.setItem('nombreJugador', jugadorActual.nombre);
-            document.getElementById('statusSesion').innerText = `Jugando como: ${jugadorActual.nombre}`;
-            document.getElementById('statusSesion').style.color = "#2ed573";
-        } else {
-            alert(data.message);
+const setIntervalNativo = window.setInterval.bind(window);
+const clearIntervalNativo = window.clearInterval.bind(window);
+const setTimeoutNativo = window.setTimeout.bind(window);
+const clearTimeoutNativo = window.clearTimeout.bind(window);
+const requestAnimationFrameNativo = window.requestAnimationFrame.bind(window);
+const cancelAnimationFrameNativo = window.cancelAnimationFrame.bind(window);
+
+window.setInterval = function (callback, delay, ...args) {
+    const id = setIntervalNativo(callback, delay, ...args);
+    intervalosActivos.add(id);
+    return id;
+};
+window.clearInterval = function (id) {
+    intervalosActivos.delete(id);
+    clearIntervalNativo(id);
+};
+window.setTimeout = function (callback, delay, ...args) {
+    const id = setTimeoutNativo(() => {
+        temporizadoresActivos.delete(id);
+        callback(...args);
+    }, delay);
+    temporizadoresActivos.add(id);
+    return id;
+};
+window.clearTimeout = function (id) {
+    temporizadoresActivos.delete(id);
+    clearTimeoutNativo(id);
+};
+window.requestAnimationFrame = function (callback) {
+    const id = requestAnimationFrameNativo((timestamp) => {
+        framesActivos.delete(id);
+        callback(timestamp);
+    });
+    framesActivos.add(id);
+    return id;
+};
+window.cancelAnimationFrame = function (id) {
+    framesActivos.delete(id);
+    cancelAnimationFrameNativo(id);
+};
+
+// Stubs para compatibilidad de servidor y controles
+if (typeof jugadorActual === 'undefined') {
+    var jugadorActual = { nombre: "Jugador 1" };
+}
+
+if (typeof guardarResultadoServidor !== 'function') {
+    window.guardarResultadoServidor = function(puntos, xp, texto, ganador) {
+        if (texto.includes('Empate')) {
+            mostrarPantallaFinal('Empate', 'No hay racha nueva');
+            console.log("Resultado registrado en servidor:", texto, { puntos, xp });
+            return;
         }
-    })
-    .catch(err => console.error("Error al iniciar sesión:", err));
+        const esGanadorP1 = ganador ? ganador === 'P1' : texto.includes('(P1)') || texto.includes(jugadorActual.nombre);
+        registrarVictoria(esGanadorP1 ? 'P1' : 'P2');
+        console.log("Resultado registrado en servidor:", texto, { puntos, xp });
+    };
 }
 
-function mostrarRanking() {
-    document.getElementById('hubMinijuegos').style.display = 'none';
-    document.getElementById('zonaJuego').style.display = 'none';
-    document.getElementById('vistaRanking').style.display = 'block';
+function registrarVictoria(ganador) {
+    const rival = ganador === 'P1' ? 'P2' : 'P1';
+    const rachaRival = rachasVictoria[rival];
+    rachasVictoria[ganador]++;
+    rachasVictoria[rival] = 0;
 
-    fetch('api/obtener_ranking.php') // <-- Ruta corregida a la carpeta api
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                const tbody = document.getElementById('tablaRankingBody');
-                tbody.innerHTML = '';
-
-                data.data.forEach((jugador, index) => {
-                    const fila = document.createElement('tr');
-                    
-                    let icono = `${index + 1}°`;
-                    if (index === 0) icono = '🥇 1°';
-                    if (index === 1) icono = '🥈 2°';
-                    if (index === 2) icono = '🥉 3°';
-
-                    fila.innerHTML = `
-                        <td><strong>${icono}</strong></td>
-                        <td>${escapeHTML(jugador.nombre)}</td>
-                        <td><strong>${jugador.puntos_totales} pts</strong></td>
-                        <td>${jugador.partidas_ganadas}</td>
-                        <td>${jugador.partidas_jugadas}</td>
-                    `;
-                    tbody.appendChild(fila);
-                });
-            } else {
-                console.error(data.message);
-            }
-        })
-        .catch(err => console.error("Error al cargar ranking:", err));
+    const nombreGanador = ganador === 'P1' ? jugadorActual.nombre : 'Jugador 2';
+    const nombreRival = rival === 'P1' ? jugadorActual.nombre : 'Jugador 2';
+    let mensajeRacha = `Racha actual: ${rachasVictoria[ganador]} partidas ganadas seguidas`;
+    if (rachasVictoria[ganador] >= 3) {
+        mensajeRacha = `llevas una racha actual de ${rachasVictoria[ganador]} partidas ganadas seguidas`;
+    }
+    if (rachaRival > 1) {
+        mensajeRacha = `¡${nombreGanador} acabó con la racha de ${rachaRival} victorias de ${nombreRival}!\n${mensajeRacha}`;
+    }
+    mostrarPantallaFinal(nombreGanador, mensajeRacha);
 }
 
-// Función auxiliar para prevenir inyección HTML en nombres
-function escapeHTML(str) {
-    return str.replace(/[&<>'"]/g, 
-        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-    );
-}
-
-// Función para detener completamente cualquier minijuego activo y regresar al Hub
-function volverAlHub() {
-    // 1. Desactivar los flags de control de todos los minijuegos
-    if (typeof juegoRoboActivo !== 'undefined') juegoRoboActivo = false;
-    if (typeof juegoVoleyActivo !== 'undefined') juegoVoleyActivo = false;
-    if (typeof juegoBasketActivo !== 'undefined') juegoBasketActivo = false;
-
-    // 2. Detener las animaciones en curso (evita que el bucle siga ejecutándose en segundo plano)
-    if (typeof animFrameRobo !== 'undefined') cancelAnimationFrame(animFrameRobo);
-    if (typeof animFrameVoley !== 'undefined') cancelAnimationFrame(animFrameVoley);
-    if (typeof animFrameBasket !== 'undefined') cancelAnimationFrame(animFrameBasket);
-
-    // 3. Limpiar el Canvas por completo
+function mostrarPantallaFinal(nombreGanador, mensajeRacha) {
+    if (pantallaFinalActiva) return;
+    pantallaFinalActiva = true;
+    detenerTodosLosJuegos(false);
     const canvas = document.getElementById('gameCanvas');
-    if (canvas) {
+    if (!canvas) return;
+    const overlay = document.getElementById('mensajeJuego');
+    if (overlay) {
+        overlay.innerText = '';
+        overlay.style.display = 'none';
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#facc15';
+    ctx.font = 'bold 60px sans-serif';
+    ctx.fillText(`¡Ganador: ${nombreGanador}!`, canvas.width / 2, canvas.height / 2 - 45);
+    ctx.font = 'bold 22px sans-serif';
+    mensajeRacha.split('\n').forEach((linea, indice) => {
+        ctx.fillText(linea, canvas.width / 2, canvas.height / 2 + 35 + indice * 30);
+    });
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    timerPantallaFinal = setTimeout(() => {
+        timerPantallaFinal = null;
+        volverAlHub();
+    }, 4000);
+}
+
+function iniciarCuentaAtras(canvas, alTerminar) {
+    pantallaFinalActiva = false;
+    detenerTodosLosJuegos();
+    const overlay = document.getElementById('mensajeJuego');
+    if (overlay) {
+        overlay.innerText = '';
+        overlay.style.display = 'none';
+    }
+    const ctx = canvas.getContext('2d');
+    let cuenta = 3;
+    const pintar = () => {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 120px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(cuenta, canvas.width / 2, canvas.height / 2);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+    };
+    pintar();
+    timerContador = setInterval(() => {
+        cuenta--;
+        if (cuenta === 0) {
+            clearInterval(timerContador);
+            timerContador = null;
+            alTerminar();
+            return;
+        }
+        pintar();
+    }, 1000);
+}
+
+if (typeof obtenerTipoControl !== 'function') {
+    window.obtenerTipoControl = function() {
+        return ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? 'mobile' : 'desktop';
+    };
+}
+
+// 🛑 DETENCIÓN Y LIBERACIÓN TOTAL DE MEMORIA / CACHÉ DE RENDER
+function detenerTodosLosJuegos(incluirCanvas = true) {
+    // 1. Apagar bandera de control global y flags individuales conocidas
+    juegoActivo = null;
+    if (typeof juegoSumoActivo !== 'undefined') juegoSumoActivo = false;
+    if (typeof juegoVoleyActivo !== 'undefined') juegoVoleyActivo = false;
+    if (typeof juegoHockeyActivo !== 'undefined') juegoHockeyActivo = false;
+    if (typeof juegoBasketActivo !== 'undefined') juegoBasketActivo = false;
+    if (typeof juegoCarreraActivo !== 'undefined') juegoCarreraActivo = false;
+    if (typeof juegoAutosActivo !== 'undefined') juegoAutosActivo = false;
+    if (typeof juegoFutbolActivo !== 'undefined') juegoFutbolActivo = false;
+    if (typeof juegoGDActivo !== 'undefined') juegoGDActivo = false;
+    if (typeof juegoPinturaActivo !== 'undefined') juegoPinturaActivo = false;
+    if (typeof juegoHeliActivo !== 'undefined') juegoHeliActivo = false;
+    if (typeof juegoMetActivo !== 'undefined') juegoMetActivo = false;
+    if (typeof juegoPatataActivo !== 'undefined') juegoPatataActivo = false;
+    if (typeof juegoRoboActivo !== 'undefined') juegoRoboActivo = false;
+    if (typeof juegoPVPActivo !== 'undefined') juegoPVPActivo = false;
+    if (typeof juegoReaccionActivo !== 'undefined') juegoReaccionActivo = false;
+
+    // 2. Detener temporizadores de conteo (3, 2, 1...)
+    if (timerContador !== null) {
+        clearInterval(timerContador);
+        timerContador = null;
+    }
+
+    if (timerPantallaFinal !== null) {
+        clearTimeout(timerPantallaFinal);
+        timerPantallaFinal = null;
+    }
+
+    intervalosActivos.forEach(id => clearIntervalNativo(id));
+    intervalosActivos.clear();
+    temporizadoresActivos.forEach(id => clearTimeoutNativo(id));
+    temporizadoresActivos.clear();
+
+    // 3. Cancelar bucle de renderizado activo en GPU
+    if (animFrameGlobal !== null) {
+        cancelAnimationFrame(animFrameGlobal);
+        animFrameGlobal = null;
+    }
+
+    framesActivos.forEach(id => cancelAnimationFrameNativo(id));
+    framesActivos.clear();
+
+    // 4. PURGA DE CANVAS / REFRESCO DE VRAM (Hard Memory Flush)
+    // Reasignar la dimensión del canvas obliga al navegador a vaciar el buffer gráfico en caché
+    const canvas = document.getElementById('gameCanvas');
+    if (canvas && incluirCanvas) {
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.width = canvas.width;
     }
 
-    // 4. Alternar las vistas de la interfaz
-    document.getElementById('zonaJuego').style.display = 'none';
-    document.getElementById('hubMinijuegos').style.display = 'block';
-}
-
-function abrirModal() {
-    if (!jugadorActual) {
-        alert("Primero ingresa tu nombre y presiona Entrar");
-        return;
-    }
-    actualizarEstadisticas();
-    document.getElementById('modalStats').style.display = 'flex';
-}
-
-function cerrarModal() {
-    document.getElementById('modalStats').style.display = 'none';
-}
-
-function cambiarVistaStats(tipo) {
-    vistaEstadisticas = tipo;
-    document.getElementById('btnSimple').classList.toggle('active', tipo === 'simple');
-    document.getElementById('btnAvanzada').classList.toggle('active', tipo === 'avanzada');
-    actualizarEstadisticas();
-}
-
-function actualizarEstadisticas() {
-    fetch(`api/stats.php?action=get&nombre=${encodeURIComponent(jugadorActual.nombre)}`)
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === 'success') {
-            const j = data.jugador;
-            const contenedor = document.getElementById('statsContent');
-
-            if (vistaEstadisticas === 'simple') {
-                contenedor.innerHTML = `
-                    <p><strong>Jugador:</strong> ${j.nombre}</p>
-                    <p><strong>Puntos Totales:</strong> ${j.puntos_totales}</p>
-                    <p><strong>Partidas Ganadas:</strong> ${j.partidas_ganadas}</p>
-                `;
-            } else {
-                contenedor.innerHTML = `
-                    <p><strong>Jugador:</strong> ${j.nombre}</p>
-                    <p><strong>Partidas Jugadas:</strong> ${j.partidas_jugadas}</p>
-                    <p><strong>Partidas Ganadas:</strong> ${j.partidas_ganadas}</p>
-                    <p><strong>Partidas Perdidas:</strong> ${j.partidas_perdidas}</p>
-                    <p><strong>Puntos Totales:</strong> ${j.puntos_totales}</p>
-                    <p><strong>Winrate:</strong> ${j.winrate}%</p>
-                `;
-            }
-        }
-    });
-}
-
-function obtenerTipoControl() {
-    return document.querySelector('input[name="controlType"]:checked').value;
-}
-function mostrarHub() {
-    document.getElementById('menuPrincipal').style.display = 'none';
-    document.getElementById('hubMinijuegos').style.display = 'block';
-}
-
-function volverAlMenu() {
-    document.getElementById('hubMinijuegos').style.display = 'none';
-    document.getElementById('menuPrincipal').style.display = 'block';
-}
-
-// Modificación en iniciarSesion() para mostrar botón de Hub
-const originalIniciarSesion = iniciarSesion;
-iniciarSesion = function() {
-    const nombreInput = document.getElementById('nombreJugador').value.trim();
-    if (!nombreInput) {
-        alert("Ingresa un nombre por favor");
-        return;
+    // 5. Destruir nodos inyectados y eventos en el panel táctil
+    const touchPanel = document.getElementById('touchControls');
+    if (touchPanel) {
+        touchPanel.innerHTML = '';
+        touchPanel.style.display = 'none';
     }
 
-    const formData = new FormData();
-    formData.append('nombre', nombreInput);
+    // 6. Vaciar buffer de teclas acumuladas
+    keys = {};
+}
 
-    fetch('api/stats.php?action=login', {
-        method: 'POST',
-        body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === 'success') {
-            jugadorActual = data.jugador;
-            localStorage.setItem('nombreJugador', jugadorActual.nombre);
-            document.getElementById('statusSesion').innerText = `Jugando como: ${jugadorActual.nombre}`;
-            document.getElementById('statusSesion').style.color = "#2ed573";
-            document.getElementById('btnIrHub').style.display = 'block';
-        } else {
-            alert(data.message);
-        }
-    })
-    .catch(err => console.error("Error al iniciar sesión:", err));
-};
+// 🏠 REGRESO AL HUB CON RESETEO COMPLETO
+function volverAlHub() {
+    // Detiene todo el procesamiento de fondo y refresca la memoria del juego
+    detenerTodosLosJuegos();
+
+    const hub = document.getElementById('hubMinijuegos');
+    const zonaJuego = document.getElementById('zonaJuego');
+    const ranking = document.getElementById('vistaRanking');
+    const modal = document.getElementById('modalStats');
+
+    if (hub) hub.style.display = 'block';
+    if (zonaJuego) zonaJuego.style.display = 'none';
+    if (ranking) ranking.style.display = 'none';
+    if (modal) modal.style.display = 'none';
+    pantallaFinalActiva = false;
+}

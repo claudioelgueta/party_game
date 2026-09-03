@@ -36,26 +36,10 @@ function iniciarMinijuegoHelicoptero() {
 }
 
 function iniciarCuentaAtrasHeli() {
-    let cuenta = 3;
-    const overlay = document.getElementById('mensajeJuego');
-    overlay.style.display = 'flex';
-
-    dibujarEscenaHeli();
-
-    const timer = setInterval(() => {
-        if (cuenta > 0) {
-            overlay.innerText = cuenta;
-            cuenta--;
-        } else if (cuenta === 0) {
-            overlay.innerText = "¡MANTÉN PRESIONADO PARA VOLAR!";
-            cuenta--;
-        } else {
-            clearInterval(timer);
-            overlay.style.display = 'none';
-            juegoHeliActivo = true;
-            bucleJuegoHeli();
-        }
-    }, 800);
+    iniciarCuentaAtras(canvasHeli, () => {
+        juegoHeliActivo = true;
+        bucleJuegoHeli();
+    });
 }
 
 function actualizarHelicoptero(h, teclasProporcionadas) {

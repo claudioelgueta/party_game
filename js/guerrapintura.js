@@ -29,15 +29,15 @@ function iniciarMinijuegoGuerraPintura() {
     const modoControl = obtenerTipoControl();
     document.getElementById('touchControls').style.display = (modoControl === 'mobile') ? 'flex' : 'none';
 
-    clearInterval(intervaloTiempoPintura);
-    intervaloTiempoPintura = setInterval(() => {
-        if (!juegoPinturaActivo) return;
-        tiempoPintura--;
-        if (tiempoPintura <= 0) terminarGuerraPintura();
-    }, 1000);
-
-    juegoPinturaActivo = true;
-    bucleGuerraPintura();
+    iniciarCuentaAtras(canvasPintura, () => {
+        intervaloTiempoPintura = setInterval(() => {
+            if (!juegoPinturaActivo) return;
+            tiempoPintura--;
+            if (tiempoPintura <= 0) terminarGuerraPintura();
+        }, 1000);
+        juegoPinturaActivo = true;
+        bucleGuerraPintura();
+    });
 }
 
 function bucleGuerraPintura() {

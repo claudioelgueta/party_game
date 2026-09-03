@@ -17,9 +17,10 @@ function iniciarMinijuegoAirHockey() {
     p2Hockey = { x: 700, y: 225, r: 22, color: '#3498db' };
     disco = { x: 400, y: 225, vx: Math.random() > 0.5 ? 5 : -5, vy: 4, r: 12 };
     scoreP1H = 0; scoreP2H = 0;
-    juegoHockeyActivo = true;
-
-    bucleAirHockey();
+    iniciarCuentaAtras(canvasHockey, () => {
+        juegoHockeyActivo = true;
+        bucleAirHockey();
+    });
 }
 
 function bucleAirHockey() {

@@ -20,8 +20,10 @@ function iniciarMinijuegoMeteoros() {
     const modoControl = obtenerTipoControl();
     document.getElementById('touchControls').style.display = (modoControl === 'mobile') ? 'flex' : 'none';
 
-    juegoMetActivo = true;
-    bucleMeteoros();
+    iniciarCuentaAtras(canvasMet, () => {
+        juegoMetActivo = true;
+        bucleMeteoros();
+    });
 }
 
 function bucleMeteoros() {

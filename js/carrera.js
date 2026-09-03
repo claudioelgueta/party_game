@@ -32,24 +32,10 @@ function iniciarMinijuegoAtletismo() {
 }
 
 function iniciarCuentaAtrasCarrera() {
-    let cuenta = 3;
-    const overlay = document.getElementById('mensajeJuego');
-    overlay.style.display = 'flex';
-
-    const timer = setInterval(() => {
-        if (cuenta > 0) {
-            overlay.innerText = cuenta;
-            cuenta--;
-        } else if (cuenta === 0) {
-            overlay.innerText = "¡CORRE!";
-            cuenta--;
-        } else {
-            clearInterval(timer);
-            overlay.style.display = 'none';
-            juegoCarreraActivo = true;
-            bucleCarrera();
-        }
-    }, 800);
+    iniciarCuentaAtras(canvasCarrera, () => {
+        juegoCarreraActivo = true;
+        bucleCarrera();
+    });
 }
 
 function bucleCarrera() {

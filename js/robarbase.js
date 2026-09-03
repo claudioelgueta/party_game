@@ -36,8 +36,10 @@ function iniciarMinijuegoRobarBase() {
     document.getElementById('touchControls').style.display = (modoControl === 'mobile') ? 'flex' : 'none';
     configurarBotonesTouchRobarBase();
 
-    juegoRoboActivo = true;
-    bucleRobarBase();
+    iniciarCuentaAtras(canvasRobo, () => {
+        juegoRoboActivo = true;
+        bucleRobarBase();
+    });
 }
 
 function inicializarBases() {

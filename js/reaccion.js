@@ -24,8 +24,6 @@ function iniciarMinijuegoReaccion() {
 
     puntosP1 = 0;
     puntosP2 = 0;
-    juegoReaccionActivo = true;
-
     const modoControl = obtenerTipoControl();
     document.getElementById('touchControls').style.display = (modoControl === 'mobile') ? 'flex' : 'none';
     configurarBotonesTouchReaccion();
@@ -34,7 +32,10 @@ function iniciarMinijuegoReaccion() {
     document.removeEventListener('keydown', manejarTeclaReaccion);
     document.addEventListener('keydown', manejarTeclaReaccion);
 
-    iniciarNuevaRondaReaccion();
+    iniciarCuentaAtras(canvasReaccion, () => {
+        juegoReaccionActivo = true;
+        iniciarNuevaRondaReaccion();
+    });
 }
 
 function iniciarNuevaRondaReaccion() {

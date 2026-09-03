@@ -16,9 +16,6 @@ let car2 = {
     color: '#3498db', vuelta: 1, pasoCheckpoint: false, gano: false
 };
 
-// Teclas presionadas
-let keys = {};
-
 function iniciarMinijuegoAutos() {
     document.getElementById('hubMinijuegos').style.display = 'none';
     document.getElementById('zonaJuego').style.display = 'block';
@@ -51,32 +48,13 @@ function resetCar(car, x, y) {
 }
 
 function iniciarCuentaAtrasAutos() {
-    let cuenta = 3;
-    const overlay = document.getElementById('mensajeJuego');
-    overlay.style.display = 'flex';
-
-    dibujarEscenaAutos();
-
-    const timer = setInterval(() => {
-        if (cuenta > 0) {
-            overlay.innerText = cuenta;
-            cuenta--;
-        } else if (cuenta === 0) {
-            overlay.innerText = "¡ARRANCA!";
-            cuenta--;
-        } else {
-            clearInterval(timer);
-            overlay.style.display = 'none';
-            juegoAutosActivo = true;
-            bucleAutos();
-        }
-    }, 800);
+    iniciarCuentaAtras(canvasAutos, () => {
+        juegoAutosActivo = true;
+        bucleAutos();
+    });
 }
 
 // Escuchar entradas de teclado
-window.addEventListener('keydown', (e) => { keys[e.key] = true; });
-window.addEventListener('keyup', (e) => { keys[e.key] = false; });
-
 function actualizarFisicasCar(car, upKey, downKey, leftKey, rightKey) {
     if (keys[upKey]) car.speed = Math.min(car.speed + car.accel, car.maxSpeed);
     if (keys[downKey]) car.speed = Math.max(car.speed - car.accel, -car.maxSpeed / 2);

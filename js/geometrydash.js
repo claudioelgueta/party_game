@@ -54,8 +54,10 @@ function iniciarMinijuegoGeometryDash() {
     const modoControl = obtenerTipoControl();
     document.getElementById('touchControls').style.display = (modoControl === 'mobile') ? 'flex' : 'none';
 
-    juegoGDActivo = true;
-    bucleGeometryDash();
+    iniciarCuentaAtras(canvasGD, () => {
+        juegoGDActivo = true;
+        bucleGeometryDash();
+    });
 }
 
 function bucleGeometryDash() {
