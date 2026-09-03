@@ -34,6 +34,9 @@
     <!-- HUB DE MINIJUEGOS -->
     <div id="hubMinijuegos" class="menu-container" style="display: none;">
         <h2>Selecciona un Minijuego</h2>
+        <div id="estadoRonda" style="display:none; margin:12px 0; color:#f1c40f; font-weight:bold;"></div>
+        <button id="btnTorneoAleatorio" class="btn-success" onclick="iniciarTorneoAleatorio()">Iniciar torneo aleatorio</button>
+        <button id="btnSiguienteRonda" class="btn-success" style="display:none; margin-top:10px;" onclick="iniciarSiguienteRonda()">Iniciar siguiente ronda</button>
         <div class="grid-minijuegos">
             <button class="btn-game" onclick="iniciarMinijuegoAtletismo()">🏃 Carrera de Atletismo</button>
             <button class="btn-game" onclick="iniciarMinijuegoAutos()">🏎️ Carrera de Autos</button>

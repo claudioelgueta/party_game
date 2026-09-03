@@ -15,6 +15,27 @@ let timerContador = null;    // Identificador único para setInterval (conteo 3,
 let timerPantallaFinal = null;
 let pantallaFinalActiva = false;
 let rachasVictoria = { P1: 0, P2: 0 };
+let torneoActivo = false;
+let rondaActual = 0;
+let juegosDeLaRonda = [];
+const TOTAL_RONDAS = 5;
+const juegosDisponibles = [
+    ['Carrera de Atletismo', 'iniciarMinijuegoAtletismo'],
+    ['Carrera de Autos', 'iniciarMinijuegoAutos'],
+    ['Arena PvP', 'iniciarMinijuegoPVP'],
+    ['Reacción Rápida', 'iniciarMinijuegoReaccion'],
+    ['Carrera de Helicópteros', 'iniciarMinijuegoHelicoptero'],
+    ['Fútbol 1v1', 'iniciarMinijuegoFutbol'],
+    ['Sumo 2D', 'iniciarMinijuegoSumo'],
+    ['Lluvia de Meteoros', 'iniciarMinijuegoMeteoros'],
+    ['Air Hockey 2D', 'iniciarMinijuegoAirHockey'],
+    ['Robar la Base', 'iniciarMinijuegoRobarBase'],
+    ['Vóleibol 2D', 'iniciarMinijuegoVoleibol'],
+    ['Básquetbol 1v1', 'iniciarMinijuegoBasquetbol'],
+    ['Guerra de Pintura', 'iniciarMinijuegoGuerraPintura'],
+    ['La Patata Caliente', 'iniciarMinijuegoPatataCaliente'],
+    ['Geometry Runner', 'iniciarMinijuegoGeometryDash']
+];
 const intervalosActivos = new Set();
 const temporizadoresActivos = new Set();
 const framesActivos = new Set();
@@ -125,6 +146,42 @@ function mostrarPantallaFinal(nombreGanador, mensajeRacha) {
         timerPantallaFinal = null;
         volverAlHub();
     }, 4000);
+}
+
+function actualizarEstadoRonda(mensaje, mostrarSiguiente = false) {
+    const estado = document.getElementById('estadoRonda');
+    const siguiente = document.getElementById('btnSiguienteRonda');
+    const torneo = document.getElementById('btnTorneoAleatorio');
+    if (estado) {
+        estado.innerText = mensaje;
+        estado.style.display = mensaje ? 'block' : 'none';
+    }
+    if (siguiente) siguiente.style.display = mostrarSiguiente ? 'block' : 'none';
+    if (torneo) torneo.style.display = torneoActivo ? 'none' : 'block';
+}
+
+function iniciarTorneoAleatorio() {
+    detenerTodosLosJuegos();
+    torneoActivo = true;
+    rondaActual = 0;
+    rachasVictoria = { P1: 0, P2: 0 };
+    juegosDeLaRonda = [...juegosDisponibles]
+        .sort(() => Math.random() - 0.5)
+        .slice(0, TOTAL_RONDAS);
+    iniciarSiguienteRonda();
+}
+
+function iniciarSiguienteRonda() {
+    if (!torneoActivo || rondaActual >= TOTAL_RONDAS) return;
+    const juego = juegosDeLaRonda[rondaActual++];
+    const iniciarJuego = window[juego[1]];
+    if (typeof iniciarJuego !== 'function') {
+        console.error(`No se encontró el juego: ${juego[1]}`);
+        return;
+    }
+    detenerTodosLosJuegos();
+    actualizarEstadoRonda(`Ronda ${rondaActual}/${TOTAL_RONDAS}: ${juego[0]}`);
+    iniciarJuego();
 }
 
 function iniciarCuentaAtras(canvas, alTerminar) {
@@ -246,5 +303,13 @@ function volverAlHub() {
     if (zonaJuego) zonaJuego.style.display = 'none';
     if (ranking) ranking.style.display = 'none';
     if (modal) modal.style.display = 'none';
+    if (torneoActivo && rondaActual < TOTAL_RONDAS) {
+        actualizarEstadoRonda(`Ronda ${rondaActual}/${TOTAL_RONDAS} terminada. Prepara la siguiente ronda.`, true);
+    } else if (torneoActivo) {
+        torneoActivo = false;
+        actualizarEstadoRonda(`Torneo terminado: ${TOTAL_RONDAS} rondas completadas.`);
+    } else {
+        actualizarEstadoRonda('');
+    }
     pantallaFinalActiva = false;
 }
